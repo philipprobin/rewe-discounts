@@ -107,8 +107,8 @@ def clean_string(input):
 
 
 def custom_exit(message):
+    traceback.print_exc()
     print(message)
-    # traceback.print_exc()
     sys.exit(1)
 
 
@@ -137,7 +137,6 @@ highlight_file = args.highlights
 
 scraper = cloudscraper.create_scraper()
 
-
 # Here we differentiate between mode "print market IDs" and mode "print offers of selected market"
 if args.list_markets:  # mode "print market IDs"
     try:
@@ -151,9 +150,16 @@ if args.list_markets:  # mode "print market IDs"
     url = 'https://www.rewe.de/api/marketsearch?searchTerm=' + zip_code
     try:
         data = scraper.get(url).json()
-    except:  # might be refined later on
-        custom_exit('FAIL: Unknown error while fetching discounts from {}. '
-                    'Maybe a typo or the server rejected the request.'.format(url))
+        if data['error']:
+            custom_exit('FAIL: Unknown error while fetching market list from {}, '
+                        'maybe a typo or the server rejected the request:'
+                        '{}'.format(url, data['error']))
+    except (JSONDecodeError, ConnectionError, ConnectTimeout):
+        custom_exit('FAIL: Unknown error while fetching market list from {}, '
+                    'maybe a typo or the server rejected the request.'.format(url))
+    except (KeyError, TypeError):  # data got retrieved successfully
+        pass
+
     markets = data
 
     if not markets:
@@ -162,8 +168,7 @@ if args.list_markets:  # mode "print market IDs"
     print('  ID     Location')
     for market in markets:
         print('{}: {}, {}, {} {}'.format(market['wwIdent'], market['companyName'], market['contactStreet'],
-                                            market['contactZipCode'],
-                                            market['contactCity']))
+                                         market['contactZipCode'], market['contactCity']))
     print('\nPlease choose the right market and its ID from above.\n\n'
           'Example program call to fetch all discounts from a market:\n'
           '  rewe_discounts.py --market-id ID --output-file "Angebote Rewe.md"')
@@ -185,9 +190,15 @@ else:  # mode "print offers of selected market"
     url = 'https://mobile-api.rewe.de/api/v3/all-offers?marketCode=' + market_id
     try:
         data = scraper.get(url).json()
-    except:
-        custom_exit('FAIL: Unknown error while fetching discounts from {}. '
-                    'Maybe a typo or the server rejected the request.'.format(url))
+        if data['error']:
+            custom_exit('FAIL: Unknown error while fetching discounts from {}, '
+                        'maybe a typo or the server rejected the request:'
+                        '{}'.format(url, data['error']))
+    except (JSONDecodeError, ConnectionError, ConnectTimeout):
+        custom_exit('FAIL: Unknown error while fetching discounts from {}, '
+                    'maybe a typo or the server rejected the request.'.format(url))
+    except (KeyError, TypeError):  # data got retrieved successfully
+        pass
 
     # Reformat categories for easier access. ! are highlighted products, and ? are uncategorized ones.
     # Order of definition here determines printing order later on.
@@ -211,7 +222,8 @@ else:  # mode "print offers of selected market"
         try:
             with open(highlight_file, 'r') as file:
                 all_lines = file.readlines()
-            product_highlights = [item.strip('\n') for item in all_lines if not item.startswith('#') and item.strip('\n')]
+            product_highlights = [item.strip('\n') for item in all_lines if
+                                  not item.startswith('#') and item.strip('\n')]
         except FileNotFoundError:  # file not found or
             custom_exit('FAIL: Highlights file "{}" not found. '
                         'Please check for typos or create it and write one url per line.'.format(highlight_file))
@@ -260,7 +272,8 @@ else:  # mode "print offers of selected market"
         file.truncate(0)
         for category_id in categorized_products:
             if category_id == '!':
-                header = '# {}\nAlle Angebote gültig bis {}.\n\n'.format(categories_id_mapping[category_id], offers_valid_date)
+                header = '# {}\nAlle Angebote gültig bis {}.\n\n'.format(categories_id_mapping[category_id],
+                                                                         offers_valid_date)
             else:
                 header = '# {}\n\n'.format(categories_id_mapping[category_id])
             file.write(header)
