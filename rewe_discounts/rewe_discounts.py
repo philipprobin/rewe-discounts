@@ -4,7 +4,6 @@ import sys
 import argparse
 import datetime
 import time
-import traceback
 
 import cloudscraper
 
@@ -222,6 +221,7 @@ else:  # mode "print offers of selected market"
 
     # Stores product data in a dict with categories as keys for a sorted printing experience.
     # Sometimes the data from Rewe is mixed/missing, so that's why we need all those try/excepts.
+    products = []
     n = 0
     for category in data['categories']:
         if 'PAYBACK' in category['title']:  # ignore payback offers
@@ -230,6 +230,7 @@ else:  # mode "print offers of selected market"
         for item in category['offers']:
             NewProduct = Product()
             try:
+                products.append(item['title'])
                 NewProduct.name = item['title']
                 NewProduct.price = item['priceData']['price']
                 NewProduct.base_price = item['subtitle']
@@ -250,8 +251,12 @@ else:  # mode "print offers of selected market"
                 categorized_products['!'].append(NewProduct)
         n += 1
 
+    with open("all_products.txt", 'w', encoding='utf-8') as file:
+        for item in products:
+            file.write(str(item) + '\n')
+
     # Writes product list grouped by categories to file, and cleans file first
-    with open(output_file, 'w') as file:
+    with open(output_file, 'w', encoding='utf-8') as file:
         file.truncate(0)
         for category_id in categorized_products:
             if category_id == '!':
