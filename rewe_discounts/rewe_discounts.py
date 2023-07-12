@@ -187,6 +187,7 @@ else:  # mode "print offers of selected market"
         custom_exit('FAIL: Unrecognized input "{}". Please provide a 6 or 7 digit market ID.'.format(args.market_id))
 
     # Craft query and load JSON stuff.
+    # dortmund hafen: https://mobile-api.rewe.de/api/v3/all-offers?marketCode=8534802
     url = 'https://mobile-api.rewe.de/api/v3/all-offers?marketCode=' + market_id
     try:
         data = scraper.get(url).json()
